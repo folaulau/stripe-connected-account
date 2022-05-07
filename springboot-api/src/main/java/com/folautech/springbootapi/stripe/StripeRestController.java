@@ -58,4 +58,16 @@ public class StripeRestController {
     public ResponseEntity<StripeChargeDTO> charge(@RequestParam String accountId,@RequestParam Double amount) {
         return new ResponseEntity<>(stripeService.charge(accountId,amount), OK);
     }
+    
+    @Operation(summary = "Create PaymentIntent", description = "Create PaymentIntent")
+    @PostMapping(value = "/paymentintent")
+    public ResponseEntity<PaymentIntentDTO> chasdrge(@RequestParam String accountId,@RequestParam Double amount) {
+        return new ResponseEntity<>(stripeService.createPaymentIntent(accountId,amount), OK);
+    }
+    
+    @Operation(summary = "Capture PaymentIntent", description = "Capture PaymentIntent")
+    @PostMapping(value = "/paymentintent/capture")
+    public ResponseEntity<PaymentIntentDTO> capturePaymentIntent(@RequestParam String paymentIntentId,@RequestParam String accountId) {
+        return new ResponseEntity<>(stripeService.capturePaymentIntent(accountId, paymentIntentId), OK);
+    }
 }

@@ -310,16 +310,12 @@ public class StripeServiceImp implements StripeService {
             e.printStackTrace();
         }
 
-        StripeToken stripeToken = stripeTokenService.getCreditCardTokenFromStripe(accountId,"Folau Dev");
-        
-        
-        
-//
+        StripeToken stripeToken = stripeTokenService.getCreditCardTokenFromStripe(accountId, "Folau Dev");
 
-        
-        
+        //
+
         try {
-            
+
             Map<String, Object> sourceParams = new HashMap<>();
             sourceParams.put("type", "ach_credit_transfer");
             sourceParams.put("currency", "usd");
@@ -328,12 +324,9 @@ public class StripeServiceImp implements StripeService {
             sourceParams.put("owner", ownerParams);
 
             Source source = Source.create(sourceParams, requestOptions);
-            
-            Customer customer = Customer.create(CustomerCreateParams.builder()
-                    .setName("folau")
-                    .setPaymentMethod(stripeToken.getPaymentMethodId())
-                    .build(), requestOptions);
-            
+
+            Customer customer = Customer.create(CustomerCreateParams.builder().setName("folau").setPaymentMethod(stripeToken.getPaymentMethodId()).build(), requestOptions);
+
             log.info("customer={}", customer.toJson());
         } catch (Exception e) {
             log.warn("StripeException, msg={}", e.getMessage());
@@ -341,7 +334,7 @@ public class StripeServiceImp implements StripeService {
         }
 
         log.info("paymentIntent.getId()={}", paymentIntent.getId());
-        
+
         try {
 
             Thread.sleep(4000);
@@ -388,6 +381,68 @@ public class StripeServiceImp implements StripeService {
         // e.printStackTrace();
         // }
 
+        return null;
+    }
+
+    @Override
+    public PaymentIntentDTO createPaymentIntent(String accountId, Double amount) {
+        Stripe.apiKey = stripeSecretKey;
+
+        log.info("create({}, {})", accountId, amount);
+        List<String> paymentMethodTypes = new ArrayList<>();
+        paymentMethodTypes.add("card");
+
+        long applicationFeeAmount = 10 * 100;
+        long totalCharge = (amount.longValue() * 100) + applicationFeeAmount;
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("payment_method_types", paymentMethodTypes);
+        params.put("application_fee_amount", applicationFeeAmount);
+        params.put("amount", totalCharge);
+        params.put("currency", "usd");
+
+        Map<String, Object> transferDataParams = new HashMap<>();
+        transferDataParams.put("destination", accountId);
+        params.put("transfer_data", transferDataParams);
+
+        PaymentIntent paymentIntent = null;
+
+        try {
+            paymentIntent = PaymentIntent.create(params);
+            System.out.println(paymentIntent.toJson());
+        } catch (StripeException e) {
+            log.warn("StripeException, msg={}", e.getMessage());
+        }
+
+        PaymentIntentDTO paymentIntentDTO = PaymentIntentDTO.builder()
+                .amount((double) (paymentIntent.getAmount() / 100))
+                .clientSecret(paymentIntent.getClientSecret())
+                .accountId(accountId)
+                .id(paymentIntent.getId())
+                .build();
+
+        return paymentIntentDTO;
+    }
+
+    @Override
+    public PaymentIntentDTO capturePaymentIntent(String accountId, String paymentIntentId) {
+
+        RequestOptions requestOptions = RequestOptions.builder().setStripeAccount(accountId).build();
+
+        PaymentIntent paymentIntent = null;
+
+        try {
+            paymentIntent = PaymentIntent.retrieve(paymentIntentId, requestOptions);
+
+            System.out.println(paymentIntent.toJson());
+
+            paymentIntent =  paymentIntent.confirm();
+            
+            System.out.println("confirmed paymentIntent: "+paymentIntent.toJson());
+            
+        } catch (StripeException e) {
+            log.warn("StripeException, msg={}", e.getMessage());
+        }
         return null;
     }
 

@@ -16,4 +16,8 @@ public interface StripeService {
     StripeAccountLinkDTO getAccountLinkUrl(String accountId);
 
     StripeChargeDTO charge(String accountId, Double amount);
+
+    PaymentIntentDTO createPaymentIntent(String accountId, Double amount);
+
+    PaymentIntentDTO capturePaymentIntent(String accountId, String paymentIntentId);
 }
