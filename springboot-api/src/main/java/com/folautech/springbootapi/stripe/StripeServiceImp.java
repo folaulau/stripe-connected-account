@@ -26,6 +26,7 @@ import com.stripe.param.AccountCreateParams.TosAcceptance;
 import com.stripe.param.AccountLinkCreateParams;
 import com.stripe.param.CustomerCreateParams;
 import com.stripe.param.PaymentIntentConfirmParams;
+import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.PaymentIntentRetrieveParams;
 
 import lombok.extern.slf4j.Slf4j;
@@ -405,6 +406,15 @@ public class StripeServiceImp implements StripeService {
         transferDataParams.put("destination", accountId);
         params.put("transfer_data", transferDataParams);
 
+        PaymentIntentCreateParams sdfsd = PaymentIntentCreateParams.builder()
+                .setAmount(totalCharge)
+                .setApplicationFeeAmount(applicationFeeAmount)
+                .setCurrency("usd")
+                .setTransferData(PaymentIntentCreateParams.TransferData.builder()
+                        .setDestination(accountId)
+                        .build())
+                .build();
+
         PaymentIntent paymentIntent = null;
 
         try {
@@ -436,10 +446,10 @@ public class StripeServiceImp implements StripeService {
 
             System.out.println(paymentIntent.toJson());
 
-            paymentIntent =  paymentIntent.confirm();
-            
-            System.out.println("confirmed paymentIntent: "+paymentIntent.toJson());
-            
+            paymentIntent = paymentIntent.confirm();
+
+            System.out.println("confirmed paymentIntent: " + paymentIntent.toJson());
+
         } catch (StripeException e) {
             log.warn("StripeException, msg={}", e.getMessage());
         }
