@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.UUID;
 
 import org.apache.commons.lang3.RandomUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,7 @@ import com.stripe.model.AccountLink;
 import com.stripe.model.Customer;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.Source;
+import com.stripe.model.Transfer;
 import com.stripe.net.RequestOptions;
 import com.stripe.param.AccountCreateParams;
 import com.stripe.param.AccountCreateParams.Company.Address;
@@ -28,6 +30,7 @@ import com.stripe.param.CustomerCreateParams;
 import com.stripe.param.PaymentIntentConfirmParams;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.PaymentIntentRetrieveParams;
+import com.stripe.param.TransferCreateParams;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -389,36 +392,62 @@ public class StripeServiceImp implements StripeService {
     public PaymentIntentDTO createPaymentIntent(String accountId, Double amount) {
         Stripe.apiKey = stripeSecretKey;
 
+        CustomerCreateParams customerParams = CustomerCreateParams.builder().setDescription("Test customer holder").setName("Test customer").build();
+        Customer customer = null;
+
+        try {
+            customer = Customer.create(customerParams);
+        } catch (Exception e) {
+            log.warn("StripeException, customer, msg={}", e.getMessage());
+        }
+
+        String customerId = "cus_Lgyk8DhX8TytPQ";
+
         log.info("create({}, {})", accountId, amount);
         List<String> paymentMethodTypes = new ArrayList<>();
         paymentMethodTypes.add("card");
 
         long applicationFeeAmount = 10 * 100;
-        long totalCharge = (amount.longValue() * 100) + applicationFeeAmount;
+        long chargeAmount = (amount.longValue() * 100) + applicationFeeAmount;
+        long stripeFeeAmount = (long) ((2.9 / 100) * chargeAmount);
+        long totalCharge = chargeAmount + stripeFeeAmount;
+
+        log.info("chargeAmount({}, {}, {}, {})", chargeAmount, stripeFeeAmount, totalCharge, applicationFeeAmount);
 
         Map<String, Object> params = new HashMap<>();
         params.put("payment_method_types", paymentMethodTypes);
-        params.put("application_fee_amount", applicationFeeAmount);
+        // params.put("application_fee_amount", applicationFeeAmount);
         params.put("amount", totalCharge);
         params.put("currency", "usd");
 
-        Map<String, Object> transferDataParams = new HashMap<>();
-        transferDataParams.put("destination", accountId);
-        params.put("transfer_data", transferDataParams);
+        // Map<String, Object> transferDataParams = new HashMap<>();
+        // transferDataParams.put("destination", accountId);
+        // params.put("transfer_data", transferDataParams);
 
-        PaymentIntentCreateParams sdfsd = PaymentIntentCreateParams.builder()
+        // PaymentIntentCreateParams sdfsd = PaymentIntentCreateParams.builder()
+        // .setAmount(totalCharge)
+        // .setApplicationFeeAmount(applicationFeeAmount)
+        // .setCurrency("usd")
+        // .setTransferData(PaymentIntentCreateParams.TransferData.builder()
+        // .setDestination(accountId)
+        // .build())
+        // .build();
+
+        PaymentIntentCreateParams createParams = PaymentIntentCreateParams.builder()
+                .addPaymentMethodType("card")
                 .setAmount(totalCharge)
-                .setApplicationFeeAmount(applicationFeeAmount)
                 .setCurrency("usd")
-                .setTransferData(PaymentIntentCreateParams.TransferData.builder()
-                        .setDestination(accountId)
-                        .build())
+                // .setSetupFutureUsage(PaymentIntentCreateParams.SetupFutureUsage.OFF_SESSION)
+                .setCustomer(customerId)
+                .setPaymentMethod("pm_1KzamuCRM62QoG6sXvIVLj5y")
+                // .setConfirm(true)
+                .setTransferGroup("group-" + UUID.randomUUID().toString())
                 .build();
 
         PaymentIntent paymentIntent = null;
 
         try {
-            paymentIntent = PaymentIntent.create(params);
+            paymentIntent = PaymentIntent.create(createParams);
             System.out.println(paymentIntent.toJson());
         } catch (StripeException e) {
             log.warn("StripeException, msg={}", e.getMessage());
@@ -428,6 +457,7 @@ public class StripeServiceImp implements StripeService {
                 .amount((double) (paymentIntent.getAmount() / 100))
                 .clientSecret(paymentIntent.getClientSecret())
                 .accountId(accountId)
+                .status(paymentIntent.getStatus())
                 .id(paymentIntent.getId())
                 .build();
 
@@ -453,7 +483,80 @@ public class StripeServiceImp implements StripeService {
         } catch (StripeException e) {
             log.warn("StripeException, msg={}", e.getMessage());
         }
+
         return null;
     }
+
+    @Override
+    public PaymentIntentDTO confirmPaymentIntent(String paymentIntentId, Double amount) {
+        log.info("paymentIntentId={}, amount={}", paymentIntentId, amount);
+
+        long transferAmount = (long) (amount * .2 * 100);
+
+        PaymentIntent paymentIntent = null;
+
+        try {
+            paymentIntent = PaymentIntent.retrieve(paymentIntentId);
+
+            System.out.println("confirmed paymentIntent: " + paymentIntent.toJson());
+
+            String transferGroup = paymentIntent.getTransferGroup();
+
+            List<com.stripe.model.Charge> charges = paymentIntent.getCharges().getData();
+
+            com.stripe.model.Charge charge = charges.get(charges.size() - 1);
+
+            /**
+             * make sure TransferGroup is the same from the payment intent
+             */
+            TransferCreateParams transferParams = TransferCreateParams.builder()
+                    .setAmount(transferAmount)
+                    .setCurrency("usd")
+                    .setDestination("acct_1Kwbek2EkAQclp9I")
+                    
+                    //https://stripe.com/docs/connect/charges-transfers#transfer-availability
+                    .setSourceTransaction(charge.getId())
+                    .setTransferGroup(transferGroup)
+                    .build();
+
+            System.out.println("transferParams: " + transferParams.toMap().toString());
+
+            Transfer transfer = Transfer.create(transferParams);
+
+            System.out.println("transfer: " + transfer.toJson());
+
+        } catch (StripeException e) {
+            log.warn("StripeException, msg={}", e.getMessage());
+        }
+
+        return null;
+    }
+
+    // @Override
+    // public PaymentIntentDTO confirmPaymentIntent(String paymentIntentId, Double amount) {
+    // log.info("paymentIntentId={}, amount={}",paymentIntentId, amount);
+    //
+    // int transferAmount = (int)(amount * .5 * 100);
+    //
+    // log.info("transferAmount={}",transferAmount);
+    //
+    // Map<String, Object> params = new HashMap<>();
+    // params.put("amount", transferAmount);
+    // params.put("currency", "usd");
+    // params.put("destination", "acct_1Kwbek2EkAQclp9I");
+    // params.put("transfer_group", "ORDER_" + UUID.randomUUID().toString());
+    //
+    // log.info("params={}",params.toString());
+    //
+    // try {
+    // com.stripe.model.Transfer transfer = com.stripe.model.Transfer.create(params);
+    //
+    // log.info("transfer={}", transfer.toJson());
+    // } catch (StripeException e) {
+    // log.warn("StripeException, msg={}", e.getMessage());
+    // }
+    //
+    // return null;
+    // }
 
 }

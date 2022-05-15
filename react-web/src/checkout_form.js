@@ -5,14 +5,19 @@ import {
   useElements
 } from "@stripe/react-stripe-js";
 import Api from "./api/Api";
+import { useNavigate } from "react-router-dom";
 
 export default function CheckoutForm(props) {
+
+  let navigate = useNavigate();
+
   const stripe = useStripe();
   const elements = useElements();
 
   const [message, setMessage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [paymentIntentId, setPaymentIntentId] = useState(null);
+  const [paymentIntentStatus, setPaymentIntentStatus] = useState(null);
 
   useEffect(() => {
     console.log("CheckoutForm")
@@ -30,6 +35,9 @@ export default function CheckoutForm(props) {
     }
 
     stripe.retrievePaymentIntent(clientSecret).then(({ paymentIntent }) => {
+      console.log("paymentIntent.status, ", paymentIntent.status)
+      setPaymentIntentStatus(paymentIntent.status)
+
       switch (paymentIntent.status) {
         case "succeeded":
           setMessage("Payment succeeded!");
@@ -40,6 +48,9 @@ export default function CheckoutForm(props) {
         case "requires_payment_method":
           setMessage("Your payment was not successful, please try again.");
           break;
+        case "requires_confirmation":
+          setMessage("You are using your existing payment method. You just need to confirm");
+          break;
         default:
           setMessage("Something went wrong.");
           break;
@@ -48,6 +59,7 @@ export default function CheckoutForm(props) {
   }, [stripe]);
 
   const handleSubmit = async (e) => {
+    console.log("handleSubmit, paymentIntentStatus=", paymentIntentStatus)
     e.preventDefault();
 
     if (!stripe || !elements) {
@@ -62,7 +74,7 @@ export default function CheckoutForm(props) {
       elements,
       confirmParams: {
         // Make sure to change this to your payment completion page
-        return_url: process.env.REACT_APP_APP_URL+"/payments",
+        return_url: process.env.REACT_APP_APP_URL+"/payment-details?amount="+props.chargeAmount,
       },
     });
 
@@ -80,14 +92,36 @@ export default function CheckoutForm(props) {
     setIsLoading(false);
   };
 
+  const giveConsent = () => {
+    console.log("confirmpayment, paymentIntentStatus=", paymentIntentStatus)
+    console.log("clientSecret=", props.clientSecret)
+
+    stripe.confirmCardPayment( props.clientSecret)
+    .then(function(result) {
+      console.log("confirmCardPayment result")
+      console.log(result)
+      console.log(result.paymentIntent)
+      navigate("/payment-details?amount="+props.chargeAmount+"&payment_intent="+result.paymentIntent.id);
+    }).catch(error => {
+      console.log("confirmCardPayment error");
+      console.log(error.response.data);
+    });
+  }
+
   return (
     <form id="payment-form" onSubmit={handleSubmit}>
-      <PaymentElement id="payment-element" />
-      <button disabled={isLoading || !stripe || !elements} id="submit">
-        <span id="button-text">
-          {isLoading ? <div className="spinner" id="spinner"></div> : "Pay now"}
-        </span>
-      </button>
+      <div>PaymentIntent Status: {message}</div>
+      {paymentIntentStatus==="requires_payment_method" && 
+        <div>
+          <PaymentElement id="payment-element" />
+          <button disabled={isLoading || !stripe || !elements} id="submit">
+            <span id="button-text">
+              {isLoading ? <div className="spinner" id="spinner"></div> : "Pay now"}
+            </span>
+          </button>
+        </div>
+      }
+      {paymentIntentStatus==="requires_confirmation" && <button type="button" onClick={giveConsent}>confirm</button>}
       {/* Show any error or success messages */}
       {message && <div id="payment-message">{message}</div>}
     </form>

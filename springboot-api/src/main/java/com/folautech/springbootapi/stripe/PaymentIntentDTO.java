@@ -25,5 +25,7 @@ public class PaymentIntentDTO implements Serializable {
     private String            id;
 
     private Double            amount;
+    
+    private String            status;
 
 }

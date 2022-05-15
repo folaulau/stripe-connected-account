@@ -20,4 +20,6 @@ public interface StripeService {
     PaymentIntentDTO createPaymentIntent(String accountId, Double amount);
 
     PaymentIntentDTO capturePaymentIntent(String accountId, String paymentIntentId);
+
+    PaymentIntentDTO confirmPaymentIntent(String paymentIntentId, Double amount);
 }

@@ -15,14 +15,14 @@ const Api = {
         };
         return instance.post('/stripe/paymentintent?accountId='+accountId+'&amount='+amount, JSON.stringify(payload), options);
     },
-    confirmPaymentIntent: (accountId, paymentIntentId) => {
+    confirmPaymentIntent: (paymentIntentId, amount) => {
 
         const options = {
             headers: {
                 'Content-Type': 'application/json'
             }
         };
-        return instance.post('/stripe/paymentintent?accountId='+accountId+'&paymentIntentId='+paymentIntentId, JSON.stringify({}), options);
+        return instance.post('/stripe/paymentintent/confirm?amount='+amount+'&paymentIntentId='+paymentIntentId, JSON.stringify({}), options);
     }
 }
 

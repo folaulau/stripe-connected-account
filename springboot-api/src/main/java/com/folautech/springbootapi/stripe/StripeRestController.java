@@ -65,6 +65,12 @@ public class StripeRestController {
         return new ResponseEntity<>(stripeService.createPaymentIntent(accountId,amount), OK);
     }
     
+    @Operation(summary = "Confirm PaymentIntent", description = "Confirm PaymentIntent")
+    @PostMapping(value = "/paymentintent/confirm")
+    public ResponseEntity<PaymentIntentDTO> confirmPaymentIntent(@RequestParam String paymentIntentId,@RequestParam Double amount) {
+        return new ResponseEntity<>(stripeService.confirmPaymentIntent(paymentIntentId, amount), OK);
+    }
+    
     @Operation(summary = "Capture PaymentIntent", description = "Capture PaymentIntent")
     @PostMapping(value = "/paymentintent/capture")
     public ResponseEntity<PaymentIntentDTO> capturePaymentIntent(@RequestParam String paymentIntentId,@RequestParam String accountId) {
