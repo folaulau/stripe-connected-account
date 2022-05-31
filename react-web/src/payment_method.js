@@ -34,7 +34,7 @@ export default function MyPaymentMethod() {
     console.log("clientSecret, ", clientSecret);
     let payload = {}
     let accountId = "acct_1Kvuna2E8yUfNXhV"
-    let amount = Math.floor(Math.random() * 100000) + 5000
+    let amount = Math.floor(Math.random() * 10) + 1000
     Api.generatePaymentIntent(payload, accountId, amount)
     .then(response => {
         console.log("response");

@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class StripeTokenService {
-    
+
     @Value("${stripe.secret.key}")
     private String             stripeSecretKey;
 
@@ -76,7 +76,11 @@ public class StripeTokenService {
         return new AsyncResult<>(new StripeToken(token.getId(), StripeToken.VALID));
     }
 
-    public StripeToken getCreditCardTokenFromStripe(String stripeAccountId,String name) {
+    public StripeToken getCreditCardTokenFromStripe(String name) {
+        return getCreditCardTokenFromStripe(null, name);
+    }
+
+    public StripeToken getCreditCardTokenFromStripe(String stripeAccountId, String name) {
         log.debug("generating a test token from stripe...");
 
         Stripe.apiKey = stripeSecretKey;
@@ -97,14 +101,20 @@ public class StripeTokenService {
         cardParams.put("name", name);
 
         tokenParams.put("card", cardParams);
-        
+
         RequestOptions requestOptions = RequestOptions.builder().setStripeAccount(stripeAccountId).build();
 
         Token token = null;
         try {
 
             long start = System.currentTimeMillis();
-            token = Token.create(tokenParams, requestOptions);
+
+            if (stripeAccountId != null) {
+                token = Token.create(tokenParams, requestOptions);
+            } else {
+                token = Token.create(tokenParams);
+            }
+
             long end = System.currentTimeMillis();
             long restCallTimeTaken = end - start;
             log.info("Stripe api call to create token took, {} milliseconds -> {} seconds", restCallTimeTaken, (restCallTimeTaken / 1000));
@@ -113,7 +123,7 @@ public class StripeTokenService {
         }
         // log.debug("Token: {}",token.getId());
         log.info("Token body: {}", token.toJson());
-        return new StripeToken(token.getId(),token.getCard().getId());
+        return new StripeToken(token.getId(), token.getCard().getId());
     }
 
     @Async

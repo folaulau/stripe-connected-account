@@ -392,17 +392,19 @@ public class StripeServiceImp implements StripeService {
     public PaymentIntentDTO createPaymentIntent(String accountId, Double amount) {
         Stripe.apiKey = stripeSecretKey;
 
-        CustomerCreateParams customerParams = CustomerCreateParams.builder().setDescription("Test customer holder").setName("Test customer").build();
-        Customer customer = null;
+        // CustomerCreateParams customerParams = CustomerCreateParams.builder().setDescription("Test customer
+        // holder").setName("Test customer").build();
+        // Customer customer = null;
+        //
+        // try {
+        // customer = Customer.create(customerParams);
+        // } catch (Exception e) {
+        // log.warn("StripeException, customer, msg={}", e.getMessage());
+        // }
+        //
+        // String customerId = "cus_Lgyk8DhX8TytPQ";
 
-        try {
-            customer = Customer.create(customerParams);
-        } catch (Exception e) {
-            log.warn("StripeException, customer, msg={}", e.getMessage());
-        }
-
-        String customerId = "cus_Lgyk8DhX8TytPQ";
-
+        String customerId = null;// "cus_Lgyk8DhX8TytPQ";
         log.info("create({}, {})", accountId, amount);
         List<String> paymentMethodTypes = new ArrayList<>();
         paymentMethodTypes.add("card");
@@ -432,23 +434,30 @@ public class StripeServiceImp implements StripeService {
         // .setDestination(accountId)
         // .build())
         // .build();
+        
+//        StripeToken stripeToken = stripeTokenService.getCreditCardTokenFromStripe("Folau Dev");
 
-        PaymentIntentCreateParams createParams = PaymentIntentCreateParams.builder()
+        PaymentIntentCreateParams.Builder builder = PaymentIntentCreateParams.builder()
                 .addPaymentMethodType("card")
                 .setAmount(totalCharge)
                 .setCurrency("usd")
                 // .setSetupFutureUsage(PaymentIntentCreateParams.SetupFutureUsage.OFF_SESSION)
-                .setCustomer(customerId)
-                .setPaymentMethod("pm_1KzamuCRM62QoG6sXvIVLj5y")
+
+//                .setPaymentMethod(stripeToken.getPaymentMethodId())
                 // .setConfirm(true)
-                .setTransferGroup("group-" + UUID.randomUUID().toString())
-                .build();
+                .setTransferGroup("group-" + UUID.randomUUID().toString());
+
+        if (customerId != null) {
+            builder.setCustomer(customerId);
+        }
+
+        PaymentIntentCreateParams createParams = builder.build();
 
         PaymentIntent paymentIntent = null;
 
         try {
             paymentIntent = PaymentIntent.create(createParams);
-            System.out.println(paymentIntent.toJson());
+            System.out.println("new paymentIntent="+paymentIntent.toJson());
         } catch (StripeException e) {
             log.warn("StripeException, msg={}", e.getMessage());
         }
@@ -513,8 +522,8 @@ public class StripeServiceImp implements StripeService {
                     .setAmount(transferAmount)
                     .setCurrency("usd")
                     .setDestination("acct_1Kwbek2EkAQclp9I")
-                    
-                    //https://stripe.com/docs/connect/charges-transfers#transfer-availability
+
+                    // https://stripe.com/docs/connect/charges-transfers#transfer-availability
                     .setSourceTransaction(charge.getId())
                     .setTransferGroup(transferGroup)
                     .build();
